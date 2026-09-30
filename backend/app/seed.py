@@ -653,3 +653,114 @@ SEED_ROWS: dict[str, list[dict[str, Any]]] = {
   '调查人员': '环境地质样例3',
   '调查状态': '环境地质样例3'}]
 }
+
+
+# ---------------------------------------------------------------------------
+# 化探样品挂接三级归属链：采样区 → 项目组 → 样品包。
+# 原有三条示例数据直接补字段，另补两条覆盖只读例外与跨单位可见场景。
+# ---------------------------------------------------------------------------
+_GEOCHEM_ATTACH = {
+    1: ("AREA-A1", "GRP-A11", "PKG-A111", "REF-2026-0301"),
+    2: ("AREA-A1", "GRP-A11", "PKG-A112", None),
+    3: ("AREA-A1", "GRP-A12", "PKG-A121", None),
+}
+for _row in SEED_ROWS["geochem"]:
+    _area, _group, _package, _ref = _GEOCHEM_ATTACH[int(_row["id"])]
+    _row["采样区编号"] = _area
+    _row["项目组编号"] = _group
+    _row["样品包编号"] = _package
+    if _ref:
+        _row["共享引用号"] = _ref
+    _row["采样点位"] = f"{_package}-点{int(_row['id']):02d}"
+
+SEED_ROWS["geochem"].extend([
+    {'id': 4,
+     'status': '待送样',
+     'pending': True,
+     'abnormal': False,
+     '样品编号': 'GEOC-0004',
+     '样品类型': '土壤地球化学样',
+     '采样点位': 'PKG-A111-点04',
+     '分析元素': 'Cu、Pb、Zn',
+     '检测方法': 'ICP-MS',
+     '检出限': '0.05ppm',
+     '分析日期': '2026-09-04',
+     '样品状态': '待送样',
+     '采样区编号': 'AREA-A1',
+     '项目组编号': 'GRP-A11',
+     '样品包编号': 'PKG-A111'},
+    {'id': 5,
+     'status': '分析中',
+     'pending': True,
+     'abnormal': False,
+     '样品编号': 'GEOC-0005',
+     '样品类型': '水系沉积物样',
+     '采样点位': 'PKG-B111-点01',
+     '分析元素': 'Au、Ag',
+     '检测方法': 'AAS',
+     '检出限': '0.01ppb',
+     '分析日期': '2026-09-05',
+     '样品状态': '分析中',
+     '采样区编号': 'AREA-B1',
+     '项目组编号': 'GRP-B11',
+     '样品包编号': 'PKG-B111'},
+])
+
+
+ACCESS_SEED: dict[str, Any] = {
+    "units": [
+        {"code": "UNIT-A", "name": "第一地质大队"},
+        {"code": "UNIT-B", "name": "兄弟协作单位"},
+        {"code": "UNIT-C", "name": "上级督查单位"},
+    ],
+    "accounts": [
+        {"username": "admin.a", "name": "大队长（本单位管理员）",
+         "unit_code": "UNIT-A", "is_admin": True},
+        {"username": "li.gong", "name": "李工（本单位采样员）",
+         "unit_code": "UNIT-A", "is_admin": False},
+        {"username": "wang.gong", "name": "王工（本单位采样员）",
+         "unit_code": "UNIT-A", "is_admin": False},
+        {"username": "partner.b", "name": "协作单位账号",
+         "unit_code": "UNIT-B", "is_admin": False},
+        {"username": "inspector.c", "name": "督查员（第三方单位）",
+         "unit_code": "UNIT-C", "is_admin": False},
+    ],
+    "areas": [
+        {"code": "AREA-A1", "name": "甲山采样区", "owner_unit": "UNIT-A"},
+        {"code": "AREA-B1", "name": "乙河采样区", "owner_unit": "UNIT-B"},
+    ],
+    "groups": [
+        {"code": "GRP-A11", "name": "甲山北坡项目组", "area_code": "AREA-A1"},
+        {"code": "GRP-A12", "name": "甲山南坡项目组", "area_code": "AREA-A1"},
+        {"code": "GRP-B11", "name": "乙河项目组", "area_code": "AREA-B1"},
+    ],
+    "packages": [
+        {"code": "PKG-A111", "name": "北坡1号样品包",
+         "group_code": "GRP-A11", "area_code": "AREA-A1"},
+        {"code": "PKG-A112", "name": "北坡2号样品包",
+         "group_code": "GRP-A11", "area_code": "AREA-A1"},
+        {"code": "PKG-A121", "name": "南坡1号样品包",
+         "group_code": "GRP-A12", "area_code": "AREA-A1"},
+        {"code": "PKG-B111", "name": "乙河1号样品包",
+         "group_code": "GRP-B11", "area_code": "AREA-B1"},
+    ],
+    # 李工对甲山采样区有读写权（GRP-A11/GRP-A12 全部继承）；
+    # 王工在北坡1号包上挂只读例外，收窄继承来的读写权。
+    "grants": [
+        {"account": "li.gong", "kind": "area", "scope": "AREA-A1",
+         "level": "readwrite", "unit_code": "UNIT-A"},
+        {"account": "wang.gong", "kind": "area", "scope": "AREA-A1",
+         "level": "readwrite", "unit_code": "UNIT-A"},
+        {"account": "wang.gong", "kind": "package", "scope": "PKG-A111",
+         "level": "readonly", "unit_code": "UNIT-A"},
+    ],
+    # 历史台账里的共享引用：授权恢复后由矩阵调整动作回填，经手关系保留。
+    "share_refs": [
+        {"id": 1, "ref_no": "REF-2026-0301", "account": "li.gong",
+         "kind": "package", "scope": "PKG-A111", "shared_by": "wang.gong",
+         "shared_at": "2026-03-01T09:30:00+00:00", "resolved_grant_id": None},
+        {"id": 2, "ref_no": "REF-2026-0302", "account": "li.gong",
+         "kind": "area", "scope": "AREA-A1", "shared_by": "admin.a",
+         "shared_at": "2026-03-02T14:10:00+00:00", "resolved_grant_id": None},
+    ],
+}

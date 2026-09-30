@@ -74,3 +74,41 @@ npm run dev
   `backend/app/routers/<模块>.py`，业务规则在 `backend/app/services/<模块>.py`。
 - 列表接口统一返回 `{ items, total, page, size }`，动作接口统一返回 `{ ok, message }`。
 - 状态流转只允许在 `app/services` 里改，路由层不做业务判断。
+
+## 化探样品三级权限（项目组—采样区—样品包）
+
+化探样品的归属链为「采样区 → 项目组 → 样品包」，权限规则集中在
+`backend/app/access/`：
+
+- **授权矩阵**：只有区间所属单位的账号能在矩阵里调整档位；跨单位账号一律只读。
+  项目组默认继承父级采样区权限，单个样品包可挂 `readonly` 只读例外。
+- **字段保护**：跨单位账号读取化探样品时，样品类型、分析元素、检测方法、检出限、
+  分析日期统一脱敏为 `******`；无授权样品按 404 处理，不泄露其存在与字段。
+- **点位写保护**：越权修改采样点位直接返回拒绝；只读例外与跨单位账号都不能改。
+- **三处同源**：化探台账、点位图、样品袋追溯待办由
+  `GET /api/geochem/access-view` 的同一份快照投影（同一 `decision_version`）。
+- **回填与缓存**：授权调整后自动回填历史共享引用（经手人 `shared_by` 保留原账号），
+  并递增 `decision_version`、清空授权结论缓存，可通过
+  `GET /api/access/cache-status` 观测。
+- **调班/撤权定序**：`/api/access/handover` 与 `/api/access/grants/{id}/revoke`
+  按请求携带的 `op_time` 单调定序，迟到操作判 409 冲突并立即关闭其旧会话，
+  旧会话再提交一律 401。时序日志见 `GET /api/access/audit`。
+
+所有化探接口与授权接口都要带 `X-Session-Token`，令牌由
+`POST /api/access/sessions`（登录）获取。种子账号：
+
+| 账号 | 单位 | 角色 |
+| --- | --- | --- |
+| `admin.a` | UNIT-A 第一地质大队 | 本单位管理员 |
+| `li.gong` | UNIT-A | 采样员，甲山采样区读写 |
+| `wang.gong` | UNIT-A | 采样员，甲山读写但北坡1号包只读例外 |
+| `partner.b` | UNIT-B 兄弟协作单位 | 跨单位（对 UNIT-A 只读脱敏） |
+| `inspector.c` | UNIT-C 上级督查单位 | 第三方，对 A/B 均跨单位只读 |
+
+### 后端测试
+
+```bash
+cd backend
+.venv/bin/python -m unittest tests.test_access -v
+```
+
