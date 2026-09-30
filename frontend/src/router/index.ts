@@ -6,6 +6,7 @@ const Core = () => import('@/views/core/index.vue')
 const Stratigraphy = () => import('@/views/stratigraphy/index.vue')
 const Geophysics = () => import('@/views/geophysics/index.vue')
 const Geochem = () => import('@/views/geochem/index.vue')
+const GeochemSecurity = () => import('@/views/geochem_security/index.vue')
 const Assay = () => import('@/views/assay/index.vue')
 const Mapping = () => import('@/views/mapping/index.vue')
 const SurveyPoint = () => import('@/views/survey_point/index.vue')
@@ -29,6 +30,7 @@ const router = createRouter({
     { path: '/stratigraphy', name: 'stratigraphy', component: Stratigraphy },
     { path: '/geophysics', name: 'geophysics', component: Geophysics },
     { path: '/geochem', name: 'geochem', component: Geochem },
+    { path: '/geochem_security', name: 'geochem_security', component: GeochemSecurity },
     { path: '/assay', name: 'assay', component: Assay },
     { path: '/mapping', name: 'mapping', component: Mapping },
     { path: '/survey_point', name: 'survey_point', component: SurveyPoint },

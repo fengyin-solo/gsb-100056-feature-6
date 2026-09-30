@@ -28,8 +28,16 @@ class Store:
         return None
 
     def overview(self) -> dict[str, object]:
+        # 权限域与三级归属表是平台底座，不计入业务模块看板
+        internal = {
+            "security_unit", "security_account", "security_grant", "security_audit",
+            "geochem_group", "geochem_area", "geochem_package",
+            "geochem_share_reference", "geochem_bag_todo",
+        }
         modules: list[dict[str, object]] = []
         for name in self.module_names():
+            if name in internal:
+                continue
             rows = self.rows(name)
             modules.append({
                 "name": name,
